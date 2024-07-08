@@ -9,13 +9,12 @@ import (
 
 type jsonObject map[string]interface{}
 
-const pokeapiURL string = "https://pokeapi.co/api/v2/"
+const SiteURL string = "https://pokeapi.co/api/v2/pokemon/porygon"
 
-func GetJson(url string) (jsonObject, error) {
+func GetJson(url string, isCached bool) (jsonObject, error) {
   var rawData []byte
   var jsonData jsonObject
   var err error
-  var isCached bool = true
 
   // See if page is in disk
   if isCached {
