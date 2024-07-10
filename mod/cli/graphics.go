@@ -6,18 +6,26 @@ import (
   "github.com/TheTatsujin/poketch/mod/apifetch/pokeapi"
   "github.com/gdamore/tcell/v2"
   "github.com/rivo/tview"
+  "strconv"
 )
 
 const (
-  // Pokemon Stat Bar
-  statBarMaxLen = 20
-  statGridMaxLen = 12
+  mediumScreenSize = 50
+  entryHeight = 16
 
 
-  rowSize = 16
+  // Pokemon Stat Grid
+    // Medium Size ratio
+    mediumStatLeft = 1
+    mediumStatMiddle = 1
+    mediumStatRight = 6
+
+    // Small Size ratio
+    smallStatLeft = 1
+    smallStatMiddle = 1
+    smallStatRight = 0
 
   numberStats = 6
-
 )
 
 type Window struct {
@@ -28,10 +36,12 @@ type Window struct {
 
 
 type PokemonEntry struct {
-  statGrid *tview.Grid
   layout *tview.Grid
 }
 
+func getStatNames() ([6]string) {
+  return [numberStats]string{"Hp", "Attack", "Defense", "Sp.Attack", "Sp.Defense", "Speed"}
+}
 
 func newPrimitive(text string, alignment int) tview.Primitive {
   return tview.NewTextView().
@@ -51,7 +61,7 @@ func (w *Window) NewLayout() {
     })
 
   // TODO: Incrementing Number of rows and RowSize interaction
-  w.displayGrid = tview.NewGrid().SetSize(100, 0, rowSize, 0)
+  w.displayGrid = tview.NewGrid().SetSize(100, 0, entryHeight, 0)
   w.displayGrid.Box.SetBorder(true).SetTitle("Poketch").
     // Don't allow side scrolling
     SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -71,54 +81,72 @@ func (w *Window) GetLayout() (*tview.Flex){
   return w.layout 
 }
 
+func newPokemonGrid() *tview.Grid {
+  return nil
+}
+
+func newStatGrid(sampleStats [6]int) *tview.Grid {
+  // Base Stat Grid
+  // Medium/Large Screen ratio - 2:2:6
+  // Small Screen ratio - 1:1:0
+  var statNames [numberStats]string = getStatNames()
+
+  statGrid := tview.NewGrid()
+  barGrid := tview.NewGrid().SetMinSize(0, 1)
+  
+  baseStatTotal := 0
+  for i := 0; i < numberStats; i++ {
+    // Bars for each stat
+    barGrid.AddItem(
+      tview.NewBox().
+      SetBorder(true).
+      SetBorderColor(tcell.ColorBlack).
+      SetBackgroundColor(tcell.ColorWhite), 
+      i, 0, 1, sampleStats[i]/10, 0, 0, false)
+
+    // Stat Names
+    statGrid.AddItem(newPrimitive(statNames[i] + string(':'), tview.AlignLeft), i, 0, 1, smallStatLeft, 0, 0, false)
+    statGrid.AddItem(newPrimitive(statNames[i] + string(':'), tview.AlignLeft), i, 0, 1, mediumStatLeft, 0, mediumScreenSize, false)
+    // Stat Numbers
+    statGrid.AddItem(newPrimitive(strconv.Itoa(sampleStats[i]), tview.AlignCenter), i, 1, 1, smallStatMiddle, 0, 0, false)
+    statGrid.AddItem(newPrimitive(strconv.Itoa(sampleStats[i]), tview.AlignCenter), i, 1, 1, mediumStatMiddle, 0, mediumScreenSize, false)
+    baseStatTotal += sampleStats[i]
+  }
+
+  statGrid.AddItem(newPrimitive("Total:", tview.AlignLeft), numberStats, 0, 1, smallStatLeft, 0, 0, false)
+  statGrid.AddItem(newPrimitive("Total:", tview.AlignLeft), numberStats, 0, 1, mediumStatLeft, 0, mediumScreenSize, false)
+  statGrid.AddItem(newPrimitive(strconv.Itoa(baseStatTotal), tview.AlignCenter), numberStats, 1, 1, smallStatMiddle, 0, 0, false)
+  statGrid.AddItem(newPrimitive(strconv.Itoa(baseStatTotal), tview.AlignCenter), numberStats, 1, 1, mediumStatMiddle, 0, mediumScreenSize, false)
+  
+  statGrid.AddItem(barGrid, 0, 2, 6, smallStatRight, 0, 0, false)
+  statGrid.AddItem(barGrid, 0, 2, 6, mediumStatRight, 0, mediumScreenSize, false)
+  
+  statGrid.SetBorder(true)
+
+  return statGrid
+}
+
 func NewPokemonEntry() PokemonEntry {
   var pkm pokeapi.Pokemon = pokeapi.NewPokemon()
   pkm.Name = "pepe"
-  e := PokemonEntry {
 
-    statGrid : tview.NewGrid().SetColumns(12, 40, 12).
-      // Stat Name
-      AddItem(newPrimitive("Hp:", tview.AlignLeft), 0, 0, 1, 1, 2, 1, false).
-      AddItem(newPrimitive("Attack:", tview.AlignLeft), 1, 0, 1, 1, 2, 1, false).
-      AddItem(newPrimitive("Defense:", tview.AlignLeft), 2, 0, 1, 1, 2, 1, false).
-      AddItem(newPrimitive("Sp.Attack:", tview.AlignLeft), 3, 0, 1, 1, 2, 1, false).
-      AddItem(newPrimitive("Sp.Defense:", tview.AlignLeft), 4, 0, 1, 1, 2, 1, false).
-      AddItem(newPrimitive("Speed:", tview.AlignLeft), 5, 0, 1, 1, 2, 1, false).
-      AddItem(newPrimitive("Total:", tview.AlignLeft), 6, 0, 1, 1, 2, 1, false),
+  sampleStats := [numberStats]int{80, 82, 83, 100, 100, 80}
 
-    layout  : tview.NewGrid().
-      AddItem(newPrimitive("left", tview.AlignCenter), 0, 0, 1, 1, 1, 1, false).
-      AddItem(newPrimitive("right", tview.AlignCenter), 0, 2, 1, 1, 1, 1, false),
+  sampleLeftPanel := newPrimitive("left", tview.AlignCenter)
+  sampleRightPanel := newStatGrid(sampleStats)
+
+  return PokemonEntry {
+    layout   :  tview.NewGrid().
+      AddItem(sampleLeftPanel, 0, 0, 1, 2, 0, 0, false).
+      AddItem(sampleLeftPanel, 0, 0, 1, 1, 0, mediumScreenSize*2, false).
+      AddItem(sampleRightPanel, 0, 2, 1, 1, 0, 0, false).
+      AddItem(sampleRightPanel, 0, 1, 1, 1, 0, mediumScreenSize*2, false),
+
   }
-  
-  // Stat Bars
-  e.statGrid.
-    AddItem(tview.NewGrid().
-      AddItem(tview.NewBox().SetBorder(true).SetBorderColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite), 0, 0, 1, statBarMaxLen, 2, 10, false).
-      AddItem(tview.NewBox().SetBorder(true).SetBorderColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite), 1, 0, 1, statBarMaxLen/4, 2, 10, false).
-      AddItem(tview.NewBox().SetBorder(true).SetBorderColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite), 2, 0, 1, 8, 2, 10, false).
-      AddItem(tview.NewBox().SetBorder(true).SetBorderColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite), 3, 0, 1, 2, 2, 10, false).
-      AddItem(tview.NewBox().SetBorder(true).SetBorderColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite), 4, 0, 1, 5, 2, 10, false).
-      AddItem(tview.NewBox().SetBorder(true).SetBorderColor(tcell.ColorBlack).SetBackgroundColor(tcell.ColorWhite), 5, 0, 1, 16, 2, 10, false),
-    0, 1, numberStats, 1, numberStats, statBarMaxLen, false)
-  
-  // Stat Number
-  e.statGrid.
-    AddItem(newPrimitive("100", tview.AlignCenter), 0, 2, 1, 1, 2, 1, false).
-    AddItem(newPrimitive("100", tview.AlignCenter), 1, 2, 1, 1, 2, 1, false).
-    AddItem(newPrimitive("100", tview.AlignCenter), 2, 2, 1, 1, 2, 1, false).
-    AddItem(newPrimitive("100", tview.AlignCenter), 3, 2, 1, 1, 2, 1, false).
-    AddItem(newPrimitive("100", tview.AlignCenter), 4, 2, 1, 1, 2, 1, false).
-    AddItem(newPrimitive("100", tview.AlignCenter), 5, 2, 1, 1, 2, 1, false).
-    AddItem(newPrimitive("420", tview.AlignLeft), 6, 1, 1, 1, 2, 1, false)
-
-  e.statGrid.SetBorder(true)
-  e.layout.AddItem(e.statGrid, 0, 1, 1, 1, 1, 1, false)
-  return e
 }
 
 func (w *Window) AddEntry(newEntry PokemonEntry){
-  w.displayGrid.AddItem(newEntry.layout, 0, 0, 1, 1, 1, 1, false)
+  w.displayGrid.AddItem(newEntry.layout, 0, 0, 1, 5, 0, 0, false)
 }
 
 func Start(w Window) error {
